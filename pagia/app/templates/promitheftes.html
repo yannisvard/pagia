@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set nav='sup' %}
+{% block body %}
+<div class="split"><h1>Προμηθευτές</h1>
+  <a class="btn" href="/promitheftis/neos">Νέος προμηθευτής</a></div>
+<p class="sub">{{ suppliers|length }} εγγραφές</p>
+<form method="get" class="row panel">
+  <div style="flex:1"><label>Αναζήτηση</label>
+    <input name="q" value="{{ q }}" placeholder="επωνυμία ή ΑΦΜ" autofocus></div>
+  <button class="btn sec">Αναζήτηση</button>
+</form>
+<div class="panel">
+<table>
+  <thead><tr><th>Επωνυμία</th><th>ΑΦΜ</th><th>Τηλέφωνο</th><th>Email</th>
+    <th>IBAN</th><th class="num">Σύνολο</th></tr></thead>
+  <tbody>
+  {% for s in suppliers %}
+  <tr>
+    <td><a href="/promitheftis/{{ s.id }}">{{ s.name }}</a>
+      {% if not s.active %}<span class="tag no">ανενεργός</span>{% endif %}</td>
+    <td>{{ s.afm }}</td><td>{{ s.phone }}</td><td>{{ s.email }}</td>
+    <td style="font-size:12px">{{ s.iban }}</td>
+    <td class="num">{{ '%.2f'|format(s.total_spent) }} €</td>
+  </tr>
+  {% else %}<tr><td colspan="6" style="color:#6b7885">Καμία εγγραφή.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

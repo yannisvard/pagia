@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% set nav='inv' %}
+{% block body %}
+<h1>{{ 'Παραστατικό ' ~ inv.number if inv else 'Νέο παραστατικό' }}</h1>
+{% if preset %}<p class="sub">Προμηθευτής: <strong>{{ preset.name }}</strong>
+  · <a href="/parastatiko/neo">αλλαγή</a></p>{% endif %}
+{% if inv %}<p class="sub">Καταχωρίστηκε {{ inv.created_at.strftime('%d/%m/%Y %H:%M') }}
+  {% if inv.status=='cancelled' %} · <span class="tag no">ΑΚΥΡΩΜΕΝΟ: {{ inv.cancel_reason }}</span>{% endif %}</p>{% endif %}
+
+<form method="post" enctype="multipart/form-data"
+      action="{{ '/parastatiko/' ~ inv.id if inv else '/parastatiko/neo' }}">
+<div class="panel">
+  <div class="grid g2">
+    <div style="position:relative">
+      <label>ΑΦΜ ή επωνυμία προμηθευτή <span class="req">*</span></label>
+      <input id="afm" placeholder="πληκτρολόγησε ΑΦΜ ή όνομα" autocomplete="off"
+             value="{{ inv.supplier.afm if inv else (preset.afm if preset else '') }}">
+      <div id="sugg" class="sugg" hidden></div>
+      <div class="hint" id="afmhint">Πληκτρολόγησε 2+ χαρακτήρες για προτάσεις.</div>
+    </div>
+    <div>
+      <label>Προμηθευτής <span class="req">*</span></label>
+      <select name="supplier_id" id="supplier_id" required>
+        <option value="">— επίλεξε —</option>
+        {% for s in suppliers %}
+        <option value="{{ s.id }}" data-afm="{{ s.afm }}"
+          {{ 'selected' if (inv and inv.supplier_id==s.id)
+                        or (preset and preset.id==s.id) }}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div id="suphist" class="suphist" hidden></div>
+
+  <div class="grid g2" style="margin-top:14px">
+    <div><label>Κωδικός δαπάνης <span class="req">*</span></label>
+      <select name="expense_code_id" id="expense_code_id" required>
+        <option value="" data-praktiko="">— επίλεξε —</option>
+        {% for c in codes %}
+        <option value="{{ c.id }}" data-praktiko="{{ c.praktiko_type }}"
+          {{ 'selected' if inv and inv.expense_code_id==c.id }}>
+          {{ c.label }}</option>
+        {% endfor %}
+      </select></div>
+    <div><label>Είδος παραστατικού <span class="req">*</span></label>
+      <select name="doc_type_id" required>
+        <option value="">— επίλεξε —</option>
+        {% for d in doctypes %}<option value="{{ d.id }}"
+          {{ 'selected' if inv and inv.doc_type_id==d.id }}>{{ d.name }}</option>{% endfor %}
+      </select></div>
+  </div>
+
+  <div class="grid g3" style="margin-top:14px">
+    <div><label>Αριθμός παραστατικού <span class="req">*</span></label>
+      <input name="number" required value="{{ inv.number if inv else '' }}"
+             placeholder="π.χ. ΤΙΠ 31678"></div>
+    <div><label>Ημερομηνία παραστατικού <span class="req">*</span></label>
+      <input type="date" name="doc_date" required
+             value="{{ inv.doc_date.isoformat() if inv and inv.doc_date else '' }}"></div>
+    <div><label>Τρόπος πληρωμής <span class="req">*</span></label>
+      <select name="payment_method_id" id="payment_method_id" required>
+        <option value="">— επίλεξε —</option>
+        {% for m in methods %}<option value="{{ m.id }}"
+          data-needsdate="{{ 1 if m.needs_date else 0 }}"
+          {{ 'selected' if inv and inv.payment_method_id==m.id }}>{{ m.name }}</option>{% endfor %}
+      </select></div>
+  </div>
+
+  <div style="margin-top:14px" id="paydate_block" hidden>
+    <label>Ημερομηνία εξόφλησης <span class="req">*</span></label>
+    <input type="date" name="payment_date" id="payment_date"
+           value="{{ inv.payment_date.isoformat() if inv and inv.payment_date else '' }}">
+    <div class="hint">Αφορά μόνο τρόπους πληρωμής που εξοφλούνται αργότερα.</div>
+  </div>
+
+  <div class="grid g3" style="margin-top:14px">
+    <div><label>Καθαρή αξία</label>
+      <input name="net" id="net" inputmode="decimal"
+             value="{{ '%.2f'|format(inv.net) if inv else '' }}"></div>
+    <div><label>ΦΠΑ</label>
+      <input name="vat" id="vat" inputmode="decimal"
+             value="{{ '%.2f'|format(inv.vat) if inv else '' }}"></div>
+    <div><label>Μεικτή αξία <span class="req">*</span></label>
+      <input name="gross" id="gross" inputmode="decimal" required
+             value="{{ '%.2f'|format(inv.gross) if inv else '' }}"></div>
+  </div>
+
+  <div style="margin-top:14px" id="dept_block" hidden>
+    <label>Τμήμα <span class="req">*</span></label>
+    <select name="department_id">
+      <option value="">—</option>
+      {% for d in departments %}<option value="{{ d.id }}"
+        {{ 'selected' if inv and inv.department_id==d.id }}>{{ d.label }}</option>{% endfor %}
+    </select>
+    <div class="hint">Απαιτείται για το πρακτικό παραλαβής υλικών εκπαίδευσης.</div>
+  </div>
+
+  <div style="margin-top:14px">
+    <label>Σημειώσεις</label>
+    <textarea name="notes">{{ inv.notes if inv else '' }}</textarea>
+  </div>
+
+  <div style="margin-top:14px">
+    <label>Συνημμένα (σαρωμένο παραστατικό)</label>
+    <input type="file" name="files" multiple
+           accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,.docx,.xlsx">
+    <div class="hint">Μπορείς να επιλέξεις περισσότερα από ένα αρχεία.</div>
+  </div>
+
+  <div style="margin-top:16px" class="row">
+    <button class="btn" name="exit" value="0">Αποθήκευση</button>
+    <button class="btn" name="exit" value="1">Αποθήκευση και έξοδος</button>
+    <a class="btn sec" href="/parastatika">Ακύρωση</a>
+  </div>
+  <p class="hint"><span class="req">*</span> υποχρεωτικά πεδία.
+    Η «Αποθήκευση» σε κρατά εδώ για πρωτοκόλληση και λήψη
+    πρακτικού. Η «Αποθήκευση και έξοδος» γυρίζει στη λίστα.</p>
+</div>
+</form>
+
+{% if inv %}
+{% if inv.files %}
+<h2>Συνημμένα</h2>
+<div class="panel">
+  <table><tbody>
+  {% for f in inv.files %}
+    <tr>
+      <td><a href="/arxeio/{{ f.id }}">{{ f.original_name }}</a></td>
+      <td style="color:#6b7885;font-size:13px">{{ (f.size / 1024)|round|int }} KB</td>
+      <td style="width:1%">
+        <form method="post" action="/arxeio/{{ f.id }}/delete"
+              onsubmit="return confirm('Να διαγραφεί το αρχείο;')">
+          <button class="btn sec sm">Διαγραφή</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody></table>
+</div>
+{% endif %}
+
+<h2>Πρωτόκολλο</h2>
+<div class="panel">
+  {% if inv.protocol_code %}
+    <p><strong style="font-size:20px">{{ inv.protocol_code }}</strong>
+      {% if inv.protocol_linked %}<span class="tag ok">συνδεδεμένο</span>
+      {% else %}<span class="tag wait">μόνο αναφορά</span>{% endif %}
+      {% if inv.protocol_date %}<br><span class="hint">Ημερομηνία {{ inv.protocol_date.strftime('%d/%m/%Y') }}</span>{% endif %}
+    </p>
+    <form method="post" action="/parastatiko/{{ inv.id }}/protokollo/clear"
+          onsubmit="return confirm('Να αφαιρεθεί η αναφορά πρωτοκόλλου;')">
+      <button class="btn sec sm">Αφαίρεση αναφοράς</button>
+    </form>
+  {% elif inv.needs_praktiko %}
+    <div class="row">
+      <form method="post" action="/parastatiko/{{ inv.id }}/protokollo">
+        <button class="btn">Αυτόματη πρωτοκόλληση</button>
+      </form>
+      <form method="post" action="/parastatiko/{{ inv.id }}/protokollo/link" class="row">
+        <div><label>Ή κρατημένος αριθμός</label>
+          <input name="code" placeholder="2026/153" style="width:130px"></div>
+        <button class="btn sec">Σύνδεση</button>
+      </form>
+    </div>
+  {% else %}
+    <p class="sub">Η δαπάνη αυτή δεν παίρνει πρακτικό, άρα ούτε αριθμό πρωτοκόλλου.</p>
+  {% endif %}
+</div>
+
+<h2>Πρακτικό</h2>
+<div class="panel">
+  {% if inv.needs_praktiko %}
+  <a class="btn" href="/parastatiko/{{ inv.id }}/praktiko">Λήψη πρακτικού</a>
+  <p class="hint">Τύπος: {{ inv.praktiko_label }} · μία σελίδα, για εκτύπωση
+    και υπογραφή.</p>
+  {% else %}
+  <p class="sub">Δεν παράγεται πρακτικό για αυτό το παραστατικό.</p>
+  {% endif %}
+
+  <form method="post" action="/parastatiko/{{ inv.id }}/praktiko-typos"
+        class="row" style="margin-top:12px;align-items:flex-end">
+    <div style="min-width:240px">
+      <label>Τύπος πρακτικού</label>
+      <select name="praktiko_override">
+        <option value="auto" {{ 'selected' if inv.praktiko_override in (None, 'auto') }}>
+          Αυτόματο — {{ praktiko_types[inv.praktiko_auto][0]
+                        if inv.praktiko_auto else 'χωρίς πρακτικό' }}</option>
+        {% for k, v in praktiko_types.items() %}
+        <option value="{{ k }}" {{ 'selected' if inv.praktiko_override == k }}>{{ v[0] }}</option>
+        {% endfor %}
+        <option value="none" {{ 'selected' if inv.praktiko_override == 'none' }}>Χωρίς πρακτικό</option>
+      </select>
+    </div>
+    <button class="btn sec sm">Αλλαγή</button>
+  </form>
+  <p class="hint">Η προεπιλογή βγαίνει από το είδος παραστατικού. Άλλαξέ την
+    μόνο όταν η συγκεκριμένη δαπάνη αποτελεί εξαίρεση.</p>
+</div>
+
+<h2>{{ 'Ακύρωση' if inv.protocol_number else 'Διαγραφή' }}</h2>
+<div class="panel">
+{% if inv.status=='active' %}
+  {% if inv.protocol_number %}
+  <form method="post" action="/parastatiko/{{ inv.id }}/cancel" class="row"
+        onsubmit="return confirm('Να ακυρωθεί το παραστατικό;')">
+    <div style="flex:1"><label>Αιτιολογία</label><input name="reason" required></div>
+    <button class="btn warn">Ακύρωση παραστατικού</button>
+  </form>
+  <p class="hint">Έχει αριθμό πρωτοκόλλου ({{ inv.protocol_code }}), οπότε
+    δεν διαγράφεται: ο αριθμός έχει ήδη δεσμευτεί στο βιβλίο και η
+    διαγραφή θα άφηνε ορφανή εγγραφή. Η ακύρωση περνάει και εκεί.</p>
+  {% else %}
+  <form method="post" action="/parastatiko/{{ inv.id }}/delete"
+        onsubmit="return confirm('Οριστική διαγραφή. Δεν αναιρείται. Συνέχεια;')">
+    <button class="btn warn">Οριστική διαγραφή</button>
+  </form>
+  <p class="hint">Δεν έχει πρωτοκολληθεί, οπότε διαγράφεται κανονικά
+    μαζί με τα συνημμένα του.</p>
+  {% endif %}
+{% else %}
+  <p class="sub">Ακυρωμένο: {{ inv.cancel_reason }}</p>
+  <form method="post" action="/parastatiko/{{ inv.id }}/restore">
+    <button class="btn sec">Επαναφορά</button></form>
+{% endif %}
+</div>
+{% endif %}
+
+<script>
+const afm=document.getElementById('afm'), sel=document.getElementById('supplier_id'),
+      sugg=document.getElementById('sugg'), hint=document.getElementById('afmhint');
+let timer=null, items=[], cur=-1;
+
+const hist=document.getElementById('suphist');
+const CURRENT_ID={{ inv.id if inv else 0 }};
+
+async function loadHistory(sid){
+  if(!sid){ hist.hidden=true; return; }
+  const r=await fetch(`/api/promitheftis/${sid}/parastatika?exclude=${CURRENT_ID}`);
+  const d=await r.json();
+  if(!d.results.length){
+    hist.innerHTML='<div class="hh">Πρώτο παραστατικό αυτού του προμηθευτή.</div>';
+    hist.hidden=false; return;
+  }
+  const rows=d.results.map(i=>
+    `<tr class="${i.cancelled?'cx':''}">
+       <td>${i.date}</td>
+       <td><a href="/parastatiko/${i.id}">${i.number}</a></td>
+       <td class="num">${i.gross.toFixed(2).replace('.',',')} €</td>
+       <td>${i.protocol||'—'}</td></tr>`).join('');
+  hist.innerHTML=`<div class="hh">Προηγούμενα παραστατικά
+      · σύνολο ${d.total.toFixed(2).replace('.',',')} €
+      <a href="/promitheftis/${sid}">πλήρης καρτέλα</a></div>
+    <table>${rows}</table>`;
+  hist.hidden=false;
+}
+
+function pick(it){
+  sel.value=it.id; afm.value=it.afm;
+  hint.textContent='✓ '+it.name;
+  sugg.hidden=true; items=[]; cur=-1;
+  loadHistory(it.id);
+}
+function draw(){
+  if(!items.length){ sugg.hidden=true; return; }
+  sugg.innerHTML=items.map((it,i)=>
+    `<div class="sitem${i===cur?' on':''}" data-i="${i}">
+       <span class="sname">${it.name}</span><span class="safm">${it.afm}</span></div>`).join('');
+  sugg.hidden=false;
+}
+if(afm){
+  afm.addEventListener('input',()=>{
+    clearTimeout(timer);
+    const v=afm.value.trim();
+    if(v.length<2){ sugg.hidden=true; items=[]; return; }
+    timer=setTimeout(async()=>{
+      const r=await fetch('/api/promitheftes?q='+encodeURIComponent(v));
+      items=(await r.json()).results; cur=-1; draw();
+      if(!items.length) hint.textContent='Καμία αντιστοιχία. Πρόσθεσε τον προμηθευτή πρώτα.';
+    },180);
+  });
+  afm.addEventListener('keydown',e=>{
+    if(sugg.hidden) return;
+    if(e.key==='ArrowDown'){ cur=Math.min(cur+1,items.length-1); draw(); e.preventDefault(); }
+    else if(e.key==='ArrowUp'){ cur=Math.max(cur-1,0); draw(); e.preventDefault(); }
+    else if(e.key==='Enter'&&cur>=0){ pick(items[cur]); e.preventDefault(); }
+    else if(e.key==='Escape'){ sugg.hidden=true; }
+  });
+  sugg.addEventListener('mousedown',e=>{
+    const el=e.target.closest('.sitem');
+    if(el) pick(items[+el.dataset.i]);
+  });
+  afm.addEventListener('blur',()=>setTimeout(()=>{sugg.hidden=true;},150));
+  sel.addEventListener('change',()=>{
+    const o=sel.selectedOptions[0];
+    if(o&&o.dataset.afm){ afm.value=o.dataset.afm; hint.textContent='✓ '+o.textContent.trim(); }
+    loadHistory(sel.value);
+  });
+  if(sel.value) loadHistory(sel.value);
+}
+const codeSel=document.getElementById('expense_code_id'),
+      deptBlock=document.getElementById('dept_block'),
+      deptSel=deptBlock.querySelector('select');
+function toggleDept(){
+  const o=codeSel.selectedOptions[0];
+  const show=o && o.dataset.praktiko==='ekpaideysis';
+  deptBlock.hidden=!show;
+  deptSel.required=show;
+  if(!show) deptSel.value='';
+}
+codeSel.addEventListener('change',toggleDept);
+toggleDept();
+
+const pmSel=document.getElementById('payment_method_id'),
+      payBlock=document.getElementById('paydate_block'),
+      payDate=document.getElementById('payment_date'),
+      docDate=document.querySelector('input[name="doc_date"]');
+function syncPayDate(){
+  const o=pmSel.selectedOptions[0];
+  const needs = o && o.value && o.dataset.needsdate==='1';
+  payBlock.hidden = !needs;
+  payDate.required = !!needs;
+  // Ταυτόχρονη εξόφληση: η ημερομηνία ακολουθεί το παραστατικό
+  if(!needs) payDate.value = docDate.value;
+}
+pmSel.addEventListener('change',syncPayDate);
+docDate.addEventListener('change',syncPayDate);
+syncPayDate();
+
+const net=document.getElementById('net'),vat=document.getElementById('vat'),
+      gross=document.getElementById('gross');
+// Το parseFloat("4,5") δίνει 4 — σταματά στο κόμμα. Κανονικοποιούμε πρώτα:
+// σβήνουμε τους τελείες των χιλιάδων και μετατρέπουμε το κόμμα σε τελεία.
+function num(v){
+  v=(v||'').toString().trim().replace(/[€\s]/g,'');
+  if(!v) return 0;
+  if(v.includes(',')) v=v.replace(/\./g,'').replace(',','.');
+  const n=parseFloat(v);
+  return isNaN(n)?0:n;
+}
+function gr(n){ return n.toFixed(2).replace('.', ','); }
+let grossTouched={{ 'true' if inv and inv.gross else 'false' }};
+function calc(){
+  const n=num(net.value), v=num(vat.value);
+  if(n||v) gross.value=gr(n+v);
+}
+if(net){
+  net.addEventListener('input',calc);
+  vat.addEventListener('input',calc);
+  // Κανονικοποίηση όταν φεύγει ο δρομέας, ώστε να μη μείνει "18" δίπλα σε "4,5"
+  [net,vat,gross].forEach(el=>el.addEventListener('blur',()=>{
+    if(el.value.trim()) el.value=gr(num(el.value));
+  }));
+}
+</script>
+{% endblock %}

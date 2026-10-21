@@ -1,0 +1,11 @@
+<form method="get" class="row" style="margin-bottom:16px">
+  <div><label>Έτος</label>
+    <input type="number" name="year" value="{{ year }}" style="width:100px"></div>
+  <div><label>Μήνας</label>
+    <select name="month">
+      {% for m in months %}
+      <option value="{{ loop.index }}" {{ 'selected' if month==loop.index }}>{{ m }}</option>
+      {% endfor %}
+    </select></div>
+  <button class="btn sec">Εμφάνιση</button>
+</form>

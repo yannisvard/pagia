@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% set nav='sum' %}
+{% block body %}
+<div class="split">
+  <h1>Συγκεντρωτικά</h1>
+  <a class="btn" href="/synkentrotika/excel?year={{ year }}&month={{ month or '' }}&apo={{ apo }}&eos={{ eos }}">
+    Λήψη σε Excel</a>
+</div>
+<p class="sub">{{ period }} · {{ count }} παραστατικά ·
+  {{ '%.2f'|format(total) }} €</p>
+
+<form method="get" class="panel">
+  <div class="row">
+    <div><label>Έτος</label>
+      <input type="number" name="year" value="{{ year }}" style="width:100px"
+             {{ 'disabled' if use_range }}></div>
+    <div><label>Μήνας</label>
+      <select name="month" {{ 'disabled' if use_range }}>
+        <option value="">Όλο το έτος</option>
+        {% for m in months %}<option value="{{ loop.index }}"
+          {{ 'selected' if month==loop.index }}>{{ m }}</option>{% endfor %}
+      </select></div>
+    <div><label>Ή από</label><input type="date" name="apo" value="{{ apo }}"></div>
+    <div><label>Έως</label><input type="date" name="eos" value="{{ eos }}"></div>
+    <button class="btn">Εφαρμογή</button>
+    <a class="btn sec" href="/synkentrotika">Καθαρισμός</a>
+  </div>
+  {% if use_range %}
+  <p class="hint" style="margin-top:10px">Ενεργό φίλτρο διαστήματος — το
+    έτος και ο μήνας αγνοούνται.</p>
+  {% endif %}
+</form>
+
+<h2>Ανά κωδικό δαπάνης</h2>
+<div class="panel">
+{% if by_code %}
+<table>
+  <thead><tr>
+    <th>Κωδικός δαπάνης</th><th>Κωδικός</th>
+    <th class="num">Πλήθος</th><th class="num">Καθαρή</th>
+    <th class="num">ΦΠΑ</th><th class="num">Μεικτή</th>
+    <th class="num">%</th>
+  </tr></thead>
+  <tbody>
+  {% for label, v in by_code %}
+    <tr>
+      <td>{{ label }}</td>
+      <td style="font-size:12px;color:#6b7885;white-space:nowrap">{{ v.code }}</td>
+      <td class="num">{{ v.n }}</td>
+      <td class="num">{{ '%.2f'|format(v.net) }}</td>
+      <td class="num">{{ '%.2f'|format(v.vat) }}</td>
+      <td class="num"><strong>{{ '%.2f'|format(v.gross) }}</strong></td>
+      <td class="num" style="color:#6b7885">
+        {{ '%.1f'|format(100 * v.gross / total if total else 0) }}%</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr style="border-top:2px solid var(--line)">
+    <td colspan="2"><strong>ΣΥΝΟΛΟ</strong></td>
+    <td class="num"><strong>{{ count }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(net_total) }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(vat_total) }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(total) }}</strong></td>
+    <td class="num"><strong>100%</strong></td>
+  </tr></tfoot>
+</table>
+{% else %}<p class="sub">Δεν υπάρχουν παραστατικά για την περίοδο.</p>{% endif %}
+</div>
+
+<h2>Υλικά εκπαίδευσης ανά τμήμα</h2>
+<div class="panel">
+{% if by_dept %}
+<p class="hint">Μόνο δαπάνες με τύπο πρακτικού «Παραλαβής Υλικών
+  Εκπαίδευσης». Σύνολο {{ '%.2f'|format(edu_total) }} €, δηλαδή
+  {{ '%.1f'|format(100 * edu_total / total if total else 0) }}% της περιόδου.</p>
+<table>
+  <thead><tr>
+    <th>Τμήμα</th><th class="num">Πλήθος</th><th class="num">Καθαρή</th>
+    <th class="num">ΦΠΑ</th><th class="num">Μεικτή</th><th class="num">%</th>
+  </tr></thead>
+  <tbody>
+  {% for label, v in by_dept %}
+    <tr>
+      <td>{{ label }}</td>
+      <td class="num">{{ v.n }}</td>
+      <td class="num">{{ '%.2f'|format(v.net) }}</td>
+      <td class="num">{{ '%.2f'|format(v.vat) }}</td>
+      <td class="num"><strong>{{ '%.2f'|format(v.gross) }}</strong></td>
+      <td class="num" style="color:#6b7885">
+        {{ '%.1f'|format(100 * v.gross / edu_total if edu_total else 0) }}%</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr style="border-top:2px solid var(--line)">
+    <td><strong>ΣΥΝΟΛΟ</strong></td>
+    <td class="num"><strong>{{ by_dept|sum(attribute='1.n') }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(by_dept|sum(attribute='1.net')) }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(by_dept|sum(attribute='1.vat')) }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(edu_total) }}</strong></td>
+    <td class="num"><strong>100%</strong></td>
+  </tr></tfoot>
+</table>
+{% else %}
+<p class="sub">Καμία δαπάνη υλικών εκπαίδευσης στην περίοδο.</p>
+{% endif %}
+</div>
+{% endblock %}

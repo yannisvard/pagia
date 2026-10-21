@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="login">
+  <div class="panel">
+    <h1>Παγία Προκαταβολή</h1>
+    <p class="sub">{{ school }}</p>
+    <form method="post" action="/login">
+      <div style="margin-bottom:12px">
+        <label>Όνομα χρήστη</label>
+        <input name="username" autofocus required>
+      </div>
+      <div style="margin-bottom:16px">
+        <label>Κωδικός</label>
+        <input type="password" name="password" required>
+      </div>
+      <button class="btn" style="width:100%">Είσοδος</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

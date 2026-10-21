@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set nav='inv' %}
+{% block body %}
+<div class="split"><h1>Παραστατικά</h1>
+  <a class="btn" href="/parastatiko/neo">Νέο παραστατικό</a></div>
+
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="stat"><div class="v">{{ active_count }}</div>
+    <div class="l">Παραστατικά</div></div>
+  <div class="stat"><div class="v">{{ '%.2f'|format(total) }} €</div>
+    <div class="l">Σύνολο</div></div>
+  <div class="stat"><div class="v">{{ '%.2f'|format(vat_total) }} €</div>
+    <div class="l">ΦΠΑ</div></div>
+  <div class="stat"><div class="v" style="{{ 'color:#b5722a' if pending }}">{{ pending }}</div>
+    <div class="l">Χωρίς πρωτόκολλο</div></div>
+</div>
+
+<form method="get" class="panel">
+  <div class="row">
+    <div><label>Έτος</label>
+      <select name="year" {{ 'disabled' if use_range }}>{% for y in years %}
+        <option value="{{ y }}" {{ 'selected' if year|string==y }}>{{ y }}</option>
+      {% endfor %}</select></div>
+    <div><label>Μήνας</label>
+      <select name="month" {{ 'disabled' if use_range }}><option value="">Όλοι</option>
+        {% for m in months %}<option value="{{ loop.index }}"
+          {{ 'selected' if month==loop.index }}>{{ m }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1;min-width:200px"><label>Αναζήτηση</label>
+      <input name="q" value="{{ q }}" placeholder="προμηθευτής, ΑΦΜ ή αριθμός"></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <div><label>Ή από ημερομηνία</label>
+      <input type="date" name="apo" value="{{ apo }}"></div>
+    <div><label>Έως</label>
+      <input type="date" name="eos" value="{{ eos }}"></div>
+    <button class="btn">Εφαρμογή</button>
+    <a class="btn sec" href="/parastatika">Καθαρισμός</a>
+  </div>
+  {% if use_range %}
+  <p class="hint" style="margin-top:10px">Ενεργό φίλτρο διαστήματος — το
+    έτος και ο μήνας αγνοούνται. «Καθαρισμός» για επιστροφή.</p>
+  {% endif %}
+</form>
+
+<div class="panel">
+<table>
+  <thead><tr><th>Ημ/νία</th><th>Αριθμός</th><th>Προμηθευτής</th><th>Δαπάνη</th>
+    <th class="num">Καθαρή</th><th class="num">ΦΠΑ</th><th class="num">Μεικτή</th>
+    <th>Πρωτόκολλο</th></tr></thead>
+  <tbody>
+  {% for i in invoices %}
+    <tr class="{{ 'cancelled' if i.status=='cancelled' }}">
+      <td>{{ i.doc_date.strftime('%d/%m/%Y') }}</td>
+      <td><a href="/parastatiko/{{ i.id }}">{{ i.number }}</a></td>
+      <td>{{ i.supplier.name }}</td>
+      <td style="font-size:13px;color:#6b7885">
+        {{ i.expense_code.label if i.expense_code else '—' }}</td>
+      <td class="num">{{ '%.2f'|format(i.net) }}</td>
+      <td class="num">{{ '%.2f'|format(i.vat) }}</td>
+      <td class="num"><strong>{{ '%.2f'|format(i.gross) }}</strong></td>
+      <td>{% if i.protocol_code %}
+            <span class="tag ok">{{ i.protocol_code }}</span>
+          {% elif i.needs_praktiko %}<span class="tag wait">εκκρεμεί</span>
+          {% else %}<span class="tag">—</span>{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8" style="color:#6b7885">Καμία εγγραφή.</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if invoices %}
+  <tfoot><tr style="border-top:2px solid var(--line)">
+    <td colspan="4"><strong>Σύνολο ενεργών ({{ active_count }})</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(net_total) }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(vat_total) }}</strong></td>
+    <td class="num"><strong>{{ '%.2f'|format(total) }}</strong></td>
+    <td></td>
+  </tr></tfoot>
+  {% endif %}
+</table>
+</div>
+{% endblock %}

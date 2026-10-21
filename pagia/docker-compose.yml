@@ -1,0 +1,16 @@
+services:
+  pagia:
+    build: ./app
+    container_name: pagia
+    restart: always
+    ports:
+      - "5501:8000"
+    volumes:
+      - ./app:/app
+      - ./data:/data
+    # Επιτρέπει στον container να φτάσει τον ίδιο τον NAS με το όνομα
+    # host.docker.internal — έτσι βλέπει τη θύρα 5500 του πρωτοκόλλου.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - pagia.env

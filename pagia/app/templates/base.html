@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="el"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Παγία Προκαταβολή{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+{% if user %}
+<header class="top">
+  <div class="brand">Παγία Προκαταβολή</div>
+  <nav>
+    <a href="/parastatika" class="{{ 'on' if nav=='inv' }}">Παραστατικά</a>
+    <a href="/promitheftes" class="{{ 'on' if nav=='sup' }}">Προμηθευτές</a>
+    <a href="/synkentrotika" class="{{ 'on' if nav=='sum' }}">Συγκεντρωτικά</a>
+    <a href="/eggrafa" class="{{ 'on' if nav=='doc' }}">Έγγραφα μήνα</a>
+    <a href="/rythmiseis" class="{{ 'on' if nav=='set' }}">Ρυθμίσεις</a>
+  </nav>
+  <div class="who">{{ user.full_name or user.username }} · <a href="/logout">Έξοδος</a></div>
+</header>
+{% endif %}
+<main>
+  {% if flash %}<div class="msg ok">{{ flash }}</div>{% endif %}
+  {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
+  {% block body %}{% endblock %}
+</main>
+</body></html>

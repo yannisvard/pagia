@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set nav='doc' %}
+{% block body %}
+<h1>Έγγραφα {{ months[month-1] }} {{ year }}</h1>
+<p class="sub">{{ invoices|length }} παραστατικά · {{ '%.2f'|format(total) }} € ·
+  {{ with_praktiko|length }} με πρακτικό</p>
+{% include "_monthbar.html" %}
+
+<h2>1. Πρωτοκόλληση</h2>
+<div class="panel">
+  <p>Αποδίδει αριθμό πρωτοκόλλου σε όσα παραστατικά του μήνα παίρνουν
+     πρακτικό και δεν έχουν ήδη.</p>
+  <form method="post" action="/eggrafa/protokollisi">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <button class="btn">Μαζική πρωτοκόλληση</button>
+  </form>
+  <p class="hint">Αν κάποιο έχει ήδη αριθμό, παραλείπεται. Δεν καίγονται αριθμοί.</p>
+</div>
+
+<h2>2. Πρακτικά</h2>
+<div class="panel">
+  <a class="btn" href="/eggrafa/praktika?year={{ year }}&month={{ month }}">Λήψη όλων (zip)</a>
+  <p class="hint" style="margin-top:8px">Ένα αρχείο ανά παραστατικό, μία
+    σελίδα το καθένα. Τα κατεβάζεις, τα τυπώνεις και τα υπογράφεις — στο
+    πρωτόκολλο μένει μόνο η εγγραφή με τον αριθμό.</p>
+  <table style="margin-top:14px">
+    <thead><tr><th>Αριθμός</th><th>Προμηθευτής</th><th>Τύπος πρακτικού</th>
+      <th>Πρωτόκολλο</th></tr></thead>
+    <tbody>
+    {% for i in with_praktiko %}
+    <tr class="{{ 'cancelled' if i.status=='cancelled' }}">
+      <td><a href="/parastatiko/{{ i.id }}">{{ i.number }}</a></td>
+      <td>{{ i.supplier.name }}</td>
+      <td>{{ i.praktiko_label }}</td>
+      <td>{% if i.protocol_code %}<span class="tag ok">{{ i.protocol_code }}</span>
+          {% else %}<span class="tag wait">εκκρεμεί</span>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="4" style="color:#6b7885">Κανένα.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>3. Διαβιβαστικό</h2>
+<div class="panel">
+  {% if batch and batch.protocol_code %}
+    <p><strong style="font-size:20px">{{ batch.protocol_code }}</strong>
+      {% if batch.protocol_linked %}<span class="tag ok">συνδεδεμένο</span>
+      {% else %}<span class="tag wait">μόνο αναφορά</span>{% endif %}
+      {% if batch.protocol_date %}<br><span class="hint">Στα έγγραφα:
+        {{ batch.protocol_ref }}</span>{% endif %}</p>
+    <form method="post" action="/eggrafa/diavivastiko/clear"
+          onsubmit="return confirm('Να αφαιρεθεί η αναφορά πρωτοκόλλου;')">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="month" value="{{ month }}">
+      <button class="btn sec sm">Αφαίρεση αναφοράς</button>
+    </form>
+  {% else %}
+    <p class="sub">Δεν έχει εκδοθεί ακόμα. Με το κουμπί παίρνει αριθμό
+      αυτόματα — ή δώσε αριθμό που έχεις ήδη κρατήσει.</p>
+    <form method="post" action="/eggrafa/diavivastiko/link" class="row"
+          style="margin-bottom:12px">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="month" value="{{ month }}">
+      <div><label>Κρατημένος αριθμός</label>
+        <input name="code" placeholder="2026/153" style="width:130px" required></div>
+      <button class="btn sec">Σύνδεση</button>
+    </form>
+  {% endif %}
+  <form method="post" action="/eggrafa/diavivastiko">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <button class="btn">Παραγωγή διαβιβαστικού</button>
+  </form>
+</div>
+
+<h2>4. Ημερολόγιο κίνησης</h2>
+<div class="panel">
+  <a class="btn" href="/eggrafa/imerologio?year={{ year }}&month={{ month }}">
+    Λήψη ημερολογίου (Excel)</a>
+</div>
+{% endblock %}

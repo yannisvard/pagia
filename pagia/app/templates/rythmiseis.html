@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% set nav='set' %}
+{% block body %}
+<h1>Ρυθμίσεις</h1>
+
+<h2>Σύνδεση με το Πρωτόκολλο</h2>
+<div class="panel">
+  <p style="margin-top:0">Κατάσταση:
+    {% if proto_ok %}<span class="tag ok">{{ proto_msg }}</span>
+    {% else %}<span class="tag no">Πρόβλημα</span>{% endif %}</p>
+  {% if not proto_ok %}
+  <p class="hint" style="margin-bottom:14px">{{ proto_msg }}</p>
+  {% endif %}
+
+  <form method="post" action="/rythmiseis/protokollo">
+    <div class="row">
+      <div style="flex:2;min-width:260px">
+        <label>Διεύθυνση πρωτοκόλλου</label>
+        <input name="url" value="{{ proto_url }}"
+               placeholder="http://host.docker.internal:5500">
+      </div>
+      <div style="flex:1;min-width:200px">
+        <label>API key</label>
+        <input name="key" autocomplete="off"
+               placeholder="{{ '•••••••• (άφησέ το κενό για να μείνει)' if proto_key_set else 'δεν έχει οριστεί' }}">
+      </div>
+      <div style="flex:1;min-width:180px">
+        <label>Παραλήπτης εξερχομένων</label>
+        <input name="recipient" value="{{ proto_recipient }}">
+      </div>
+      <button class="btn">Αποθήκευση και δοκιμή</button>
+    </div>
+    <div class="hint" style="margin-top:8px">
+      Διευθύνσεις Tailscale (100.x.x.x) <strong>δεν</strong> δουλεύουν μέσα
+      από container. Το <code>host.docker.internal</code> δείχνει στον ίδιο
+      τον NAS. Οι τιμές εδώ υπερισχύουν του <code>pagia.env</code> και
+      ισχύουν αμέσως, χωρίς Build.
+    </div>
+  </form>
+
+  <form method="post" action="/rythmiseis/protokollo/dokimi" style="margin-top:12px">
+    <button class="btn sec sm">Δοκιμή σύνδεσης τώρα</button>
+  </form>
+</div>
+
+<h2>Στοιχεία σχολής και επιτροπής</h2>
+<div class="panel">
+  <p class="hint">Όσα αλλάζουν από χρονιά σε χρονιά ή από σχολή σε σχολή.
+    Μπαίνουν στα έγγραφα ως μεταβλητές: γράψε τη μεταβλητή μέσα στο πρότυπο
+    και συμπληρώνεται από εδώ, χωρίς να ξαναγράψεις το .docx. Δες πιο κάτω,
+    στα «Πρότυπα εγγράφων», ποιες μεταβλητές χρησιμοποιεί το κάθε αρχείο —
+    όσες δεν εμφανίζονται εκεί δεν επηρεάζουν τα πρακτικά, αλλά μπαίνουν
+    στο Ημερολόγιο Κίνησης.</p>
+  <form method="post" action="/rythmiseis/stoixeia">
+    <div class="grid g2">
+    {% for key, ph, label, _d in org_fields %}
+      <div>
+        <label>{{ label }} <code style="text-transform:none;font-weight:400">«{{ ph }}»</code></label>
+        <input name="{{ key }}" value="{{ org[ph] }}">
+      </div>
+    {% endfor %}
+    </div>
+    <div style="margin-top:14px"><button class="btn">Αποθήκευση</button></div>
+  </form>
+</div>
+
+<h2>Πρότυπα εγγράφων</h2>
+<div class="panel">
+  <p class="hint">Κατέβασε το πρότυπο, άλλαξέ το στο Word, ανέβασέ το πίσω.
+    Το προηγούμενο κρατιέται αυτόματα ως <code>.bak</code>. Οι μεταβλητές
+    γράφονται με ελληνικά εισαγωγικά: <code>«ΟΝΟΜΑ»</code>.</p>
+  {% for t in templates %}
+  <div style="border-top:1px solid var(--line);padding:12px 0">
+    <div class="split">
+      <div>
+        <strong>{{ t.label }}</strong>
+        {% if t.exists %}<span class="hint">· ενημερώθηκε {{ t.modified }}</span>
+        {% else %}<span class="tag no">λείπει</span>{% endif %}
+      </div>
+      <div class="row" style="align-items:center">
+        {% if t.exists %}
+        <a class="btn sec sm" href="/rythmiseis/protypo/{{ t.key }}">Λήψη</a>
+        {% endif %}
+        <form method="post" action="/rythmiseis/protypo/{{ t.key }}"
+              enctype="multipart/form-data" class="row" style="margin:0">
+          <input type="file" name="file" accept=".docx" required style="width:auto">
+          <button class="btn sm">Ανέβασμα</button>
+        </form>
+      </div>
+    </div>
+    {% if t.exists %}
+    <div class="hint" style="margin-top:6px">
+      Χρησιμοποιεί: {% for f in t.used %}<code>«{{ f }}»</code> {% else %}—{% endfor %}
+    </div>
+    {% if t.available %}
+    <div class="hint">Διαθέσιμες αχρησιμοποίητες:
+      {% for f in t.available %}<code>«{{ f }}»</code> {% endfor %}</div>
+    {% endif %}
+    {% if t.unknown %}
+    <div class="hint" style="color:var(--danger)">Άγνωστες, θα μείνουν ως έχουν:
+      {% for f in t.unknown %}<code>«{{ f }}»</code> {% endfor %}</div>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<h2>Τμήματα</h2>
+<div class="panel">
+  {% for d in departments %}
+  <form method="post" action="/rythmiseis/metavoli" class="row"
+        style="border-top:1px solid var(--line);padding:10px 0;margin:0">
+    <input type="hidden" name="kind" value="dept">
+    <input type="hidden" name="item_id" value="{{ d.id }}">
+    <div style="flex:3;min-width:250px"><input name="specialty" value="{{ d.specialty }}"></div>
+    <div style="width:90px"><input name="semester" value="{{ d.semester }}"></div>
+    <div style="width:90px"><input name="section" value="{{ d.section }}"></div>
+    <button class="btn sec sm">Αποθήκευση</button>
+    <button class="btn sec sm" formaction="/rythmiseis/diagrafi"
+            onclick="return confirm('Να διαγραφεί το τμήμα;')">Διαγραφή</button>
+  </form>
+  {% endfor %}
+
+  <form method="post" action="/rythmiseis/tmima" class="row"
+        style="border-top:2px solid var(--line);padding-top:14px;margin-top:4px">
+    <div style="flex:3;min-width:250px"><label>Νέα ειδικότητα</label>
+      <input name="specialty" required></div>
+    <div style="width:90px"><label>Εξάμηνο</label>
+      <input name="semester" required placeholder="Α"></div>
+    <div style="width:90px"><label>Τμήμα</label>
+      <input name="section" required placeholder="1"></div>
+    <button class="btn">Προσθήκη</button>
+  </form>
+</div>
+
+<div class="grid g2">
+  <div class="panel">
+    <h2 style="margin-top:0">Τρόποι πληρωμής</h2>
+    <p class="hint"><strong>Ημ/νία</strong>: ζητείται ξεχωριστή ημερομηνία
+      εξόφλησης. Σβήσ' το σε κάρτα και IRIS, όπου η πληρωμή είναι
+      ταυτόχρονη.<br>
+      <strong>Αποδ.</strong>: μπαίνει στο διαβιβαστικό η γραμμή
+      «Αποδεικτικό εξόφλησης μέσω τραπεζικής μεταφοράς».</p>
+    {% for m in methods %}
+    <form method="post" action="/rythmiseis/metavoli"
+          style="border-top:1px solid var(--line);padding:10px 0;margin:0">
+      <input type="hidden" name="kind" value="method">
+      <input type="hidden" name="item_id" value="{{ m.id }}">
+      <div class="row">
+        <div style="flex:1;min-width:130px"><input name="name" value="{{ m.name }}"></div>
+        <label style="display:flex;align-items:center;gap:5px;text-transform:none;
+                      font-size:12px;margin:0;white-space:nowrap">
+          <input type="checkbox" name="needs_date" style="width:auto"
+                 {{ 'checked' if m.needs_date }}> ημ/νία</label>
+        <label style="display:flex;align-items:center;gap:5px;text-transform:none;
+                      font-size:12px;margin:0;white-space:nowrap">
+          <input type="checkbox" name="needs_proof" style="width:auto"
+                 {{ 'checked' if m.needs_proof }}> αποδ.</label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sec sm">Αποθήκευση</button>
+        <button class="btn sec sm" formaction="/rythmiseis/diagrafi"
+                onclick="return confirm('Να διαγραφεί;')">Διαγραφή</button>
+      </div>
+    </form>
+    {% endfor %}
+    <form method="post" action="/rythmiseis/apli"
+          style="border-top:2px solid var(--line);padding-top:12px;margin-top:10px">
+      <input type="hidden" name="kind" value="method">
+      <div class="row">
+        <div style="flex:1;min-width:130px"><label>Νέος τρόπος</label>
+          <input name="name" required placeholder="π.χ. Τραπεζική μεταφορά"></div>
+        <label style="display:flex;align-items:center;gap:5px;text-transform:none;
+                      font-size:12px;margin:0;white-space:nowrap">
+          <input type="checkbox" name="needs_date" checked style="width:auto"> ημ/νία</label>
+        <label style="display:flex;align-items:center;gap:5px;text-transform:none;
+                      font-size:12px;margin:0;white-space:nowrap">
+          <input type="checkbox" name="needs_proof" checked style="width:auto"> αποδ.</label>
+        <button class="btn">Προσθήκη</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Είδη παραστατικού</h2>
+    {% for d in doctypes %}
+    <form method="post" action="/rythmiseis/metavoli" class="row" style="margin-bottom:6px">
+      <input type="hidden" name="kind" value="doctype">
+      <input type="hidden" name="item_id" value="{{ d.id }}">
+      <div style="flex:1;min-width:150px"><input name="name" value="{{ d.name }}"></div>
+      <button class="btn sec sm">Αποθήκευση</button>
+      <button class="btn sec sm" formaction="/rythmiseis/diagrafi"
+              onclick="return confirm('Να διαγραφεί;')">Διαγραφή</button>
+    </form>
+    {% endfor %}
+    <form method="post" action="/rythmiseis/apli" class="row"
+          style="border-top:1px solid var(--line);padding-top:12px;margin-top:10px">
+      <input type="hidden" name="kind" value="doctype">
+      <div style="flex:1;min-width:150px">
+        <input name="name" required placeholder="π.χ. Τιμολόγιο Πώλησης"></div>
+      <button class="btn sec">Προσθήκη</button>
+    </form>
+  </div>
+</div>
+
+<h2>Εισαγωγή από CSV</h2>
+<div class="panel">
+  <form method="post" action="/rythmiseis/eisagogi"
+        enctype="multipart/form-data" class="row">
+    <div><label>Τι εισάγεις</label>
+      <select name="kind">
+        <option value="suppliers">Προμηθευτές</option>
+        <option value="departments">Τμήματα</option>
+      </select></div>
+    <div style="flex:1;min-width:200px"><label>Αρχείο CSV (UTF-8)</label>
+      <input type="file" name="file" accept=".csv" required></div>
+    <button class="btn">Εισαγωγή</button>
+  </form>
+  <p class="hint">Προμηθευτές: στήλες ΕΠΩΝΥΜΙΑ, ΑΦΜ, ΤΡΑΠΕΖΑ, IBAN, ΤΗΛΕΦΩΝΟ,
+    EMAIL, ΔΙΕΥΘΥΝΣΗ. Υπάρχον ΑΦΜ ενημερώνεται, δεν διπλασιάζεται.</p>
+</div>
+
+<h2>Συντήρηση</h2>
+<div class="panel" style="border-color:#e6c9c6">
+  <p style="margin-top:0"><strong>Διαγραφή όλων των παραστατικών.</strong>
+    Για το τέλος των δοκιμών. Σβήνονται και τα συνημμένα τους.</p>
+  <p class="hint" style="margin-bottom:14px">Όσα είχαν πρωτοκολληθεί
+    <strong>ακυρώνονται</strong> στο πρωτόκολλο, δεν σβήνονται — οι
+    αριθμοί έχουν ήδη δοθεί και η σειρά δεν πρέπει να σπάσει.
+    Προμηθευτές, κωδικοί, τμήματα και ρυθμίσεις δεν πειράζονται.</p>
+  <form method="post" action="/rythmiseis/katharismos"
+        onsubmit="return confirm('Οριστική διαγραφή όλων των παραστατικών. Συνέχεια;')">
+    <div class="row">
+      <div><label>Γράψε ΔΙΑΓΡΑΦΗ για επιβεβαίωση</label>
+        <input name="confirm" placeholder="ΔΙΑΓΡΑΦΗ" required style="width:180px"></div>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;
+                    font-size:13px;margin:0">
+        <input type="checkbox" name="reset_methods" checked style="width:auto">
+        επαναφορά των τριών τρόπων πληρωμής</label>
+      <button class="btn warn">Διαγραφή</button>
+    </div>
+  </form>
+</div>
+
+<h2>Χρήστες</h2>
+<div class="panel">
+  <table><tbody>
+    {% for u in users %}
+    <tr><td>{{ u.username }}</td><td>{{ u.full_name }}</td>
+      <td>{% if u.is_admin %}<span class="tag">διαχειριστής</span>{% endif %}</td></tr>
+    {% endfor %}
+  </tbody></table>
+
+  <form method="post" action="/rythmiseis/xristis" class="row" style="margin-top:14px">
+    <div><label>Όνομα χρήστη</label><input name="username" required></div>
+    <div><label>Ονοματεπώνυμο</label><input name="full_name"></div>
+    <div><label>Κωδικός</label><input type="password" name="password" required></div>
+    <button class="btn">Προσθήκη</button>
+  </form>
+
+  <form method="post" action="/rythmiseis/kodikos_prosvasis" class="row"
+        style="border-top:1px solid var(--line);padding-top:14px;margin-top:14px">
+    <div style="flex:1;min-width:200px"><label>Αλλαγή δικού μου κωδικού</label>
+      <input type="password" name="password" required></div>
+    <button class="btn sec">Αλλαγή</button>
+  </form>
+</div>
+{% endblock %}
